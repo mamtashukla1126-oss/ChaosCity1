@@ -1,0 +1,486 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net — deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Shared Hardened Primitives
+    // -------------------------------------------------------------------------
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUsernameKey(key) {
+      return key is string && key.size() >= 3 && key.size() <= 20 && key.matches('^[a-z0-9_]{3,20}$');
+    }
+
+    function isValidDisplayUsername(name) {
+      return name is string && name.size() >= 3 && name.size() <= 20 && name.matches('^[a-zA-Z0-9_]{3,20}$');
+    }
+
+    function hasNoSensitiveCredentials(data) {
+      return !('password' in data) &&
+             !('passwordHash' in data) &&
+             !('email' in data) &&
+             !('authEmail' in data) &&
+             !('phone' in data) &&
+             !('isOwner' in data);
+    }
+
+    function isValidAppearanceConfig(cfg) {
+      return cfg is map &&
+             cfg.size() == 9 &&
+             cfg.keys().hasOnly([
+               'gender', 'skinTone', 'hairStyle', 'hairColor',
+               'eyeStyle', 'eyeColor', 'browStyle', 'facialDetail', 'facialHair'
+             ]) &&
+             cfg.gender in ['male', 'female'] &&
+             cfg.skinTone is string && cfg.skinTone.size() == 7 &&
+             cfg.hairColor is string && cfg.hairColor.size() == 7 &&
+             cfg.eyeColor is string && cfg.eyeColor.size() == 7;
+    }
+
+    function isValidEquippedClothing(eq) {
+      return eq is map &&
+             eq.size() == 7 &&
+             eq.keys().hasOnly(['shirt', 'jacket', 'trousers', 'shoes', 'hat', 'glasses', 'accessory']);
+    }
+
+    function isValidStringList(arr, maxLen) {
+      return arr is list &&
+             arr.size() <= maxLen &&
+             (arr.size() == 0 || (arr[0] is string && arr[0].size() <= 80));
+    }
+
+    function isValidAchievementsMap(m) {
+      return m is map &&
+             m.size() <= 8 &&
+             'unlockedIds' in m &&
+             isValidStringList(m.unlockedIds, 80);
+    }
+
+    function isValidMissionsMap(m) {
+      return m is map &&
+             m.size() <= 12 &&
+             'visitedDistricts' in m && isValidStringList(m.visitedDistricts, 24) &&
+             'visitedBuildings' in m && isValidStringList(m.visitedBuildings, 100) &&
+             'completedIds' in m && isValidStringList(m.completedIds, 80) &&
+             (!('metNpcs' in m) || isValidStringList(m.metNpcs, 40)) &&
+             (!('acceptedIds' in m) || isValidStringList(m.acceptedIds, 80)) &&
+             (!('itemsPurchased' in m) || (m.itemsPurchased is int && m.itemsPurchased >= 0 && m.itemsPurchased <= 100000)) &&
+             (!('activitiesCompleted' in m) || (m.activitiesCompleted is int && m.activitiesCompleted >= 0 && m.activitiesCompleted <= 100000)) &&
+             (!('garageCustomized' in m) || m.garageCustomized is bool) &&
+             (!('vehicleSpawned' in m) || m.vehicleSpawned is bool) &&
+             (!('activeMissionId' in m) || m.activeMissionId == null || (m.activeMissionId is string && m.activeMissionId.size() <= 64));
+    }
+
+    function isValidProgressionMap(p) {
+      return p is map &&
+             p.size() <= 12 &&
+             'xp' in p && p.xp is int && p.xp >= 0 && p.xp <= 100000 &&
+             'level' in p && p.level is int && p.level >= 1 && p.level <= 20 &&
+             'selectedTitle' in p && p.selectedTitle is string && p.selectedTitle.size() >= 1 && p.selectedTitle.size() <= 40 &&
+             'unlockedTitles' in p && isValidStringList(p.unlockedTitles, 30) &&
+             'unlockedBadges' in p && isValidStringList(p.unlockedBadges, 32) &&
+             (!('dailyResetKey' in p) || (p.dailyResetKey is string && p.dailyResetKey.size() <= 20)) &&
+             (!('weeklyResetKey' in p) || (p.weeklyResetKey is string && p.weeklyResetKey.size() <= 20)) &&
+             (!('dailyCounts' in p) || (p.dailyCounts is map && p.dailyCounts.size() <= 20)) &&
+             (!('weeklyCounts' in p) || (p.weeklyCounts is map && p.weeklyCounts.size() <= 20));
+    }
+
+    function isValidStoryMap(s) {
+      return s is map &&
+             s.size() <= 14 &&
+             s.keys().hasOnly([
+               'started', 'currentChapter', 'completedChapters', 'watchedCutscenes',
+               'currentMissionId', 'completedMissionIds', 'missionPhase', 'choices',
+               'campaignCompleted', 'endingUnlocked', 'teaserViewed', 'missionBaseline'
+             ]) &&
+             'started' in s && s.started is bool &&
+             'currentChapter' in s && s.currentChapter is int && s.currentChapter >= 1 && s.currentChapter <= 10 &&
+             'completedChapters' in s && s.completedChapters is list && s.completedChapters.size() <= 10 &&
+             'watchedCutscenes' in s && isValidStringList(s.watchedCutscenes, 30) &&
+             (!('currentMissionId' in s) || s.currentMissionId == null || (s.currentMissionId is string && s.currentMissionId.size() <= 48)) &&
+             (!('completedMissionIds' in s) || isValidStringList(s.completedMissionIds, 20)) &&
+             (!('missionPhase' in s) || (s.missionPhase is string && s.missionPhase.size() <= 32)) &&
+             (!('choices' in s) || (s.choices is map && s.choices.size() <= 12)) &&
+             (!('campaignCompleted' in s) || s.campaignCompleted is bool) &&
+             (!('endingUnlocked' in s) || s.endingUnlocked is bool) &&
+             (!('teaserViewed' in s) || s.teaserViewed is bool) &&
+             (!('missionBaseline' in s) || s.missionBaseline == null || (s.missionBaseline is map && s.missionBaseline.size() <= 12));
+    }
+
+    function isValidMiniGameRecordsMap(r) {
+      return r is map &&
+             r.size() <= 16 &&
+             (!('bestFishWeightKg' in r) || ((r.bestFishWeightKg is int || r.bestFishWeightKg is float) && r.bestFishWeightKg >= 0 && r.bestFishWeightKg <= 10000)) &&
+             (!('bestRaceSec' in r) || ((r.bestRaceSec is int || r.bestRaceSec is float) && r.bestRaceSec >= 0 && r.bestRaceSec <= 10000)) &&
+             (!('bestSprintSec' in r) || ((r.bestSprintSec is int || r.bestSprintSec is float) && r.bestSprintSec >= 0 && r.bestSprintSec <= 10000)) &&
+             (!('fishCaught' in r) || (r.fishCaught is int && r.fishCaught >= 0 && r.fishCaught <= 100000));
+    }
+
+    // -------------------------------------------------------------------------
+    // Entity Validation Blueprints
+    // -------------------------------------------------------------------------
+    function isValidUsernameReservation(data, usernameKey) {
+      return hasNoSensitiveCredentials(data) &&
+             data.keys().hasAll(['uid', 'username', 'normalizedUsername', 'createdAt']) &&
+             data.keys().hasOnly(['uid', 'username', 'normalizedUsername', 'createdAt']) &&
+             data.uid is string && data.uid == request.auth.uid && isValidId(data.uid) &&
+             isValidDisplayUsername(data.username) &&
+             isValidUsernameKey(data.normalizedUsername) &&
+             data.normalizedUsername == usernameKey &&
+             data.createdAt == request.time;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return hasNoSensitiveCredentials(data) &&
+             data.size() == 16 &&
+             data.keys().hasOnly([
+               'uid', 'username', 'normalizedUsername', 'playerId',
+               'appearanceId', 'appearanceConfig', 'equippedClothing',
+               'ownedClothing', 'inventoryCount', 'coins',
+               'achievementProgress', 'missionProgress',
+               'saveVersion', 'createdAt', 'updatedAt', 'lastSavedAt'
+             ]) &&
+             data.uid is string && data.uid == userId && data.uid == request.auth.uid &&
+             isValidDisplayUsername(data.username) &&
+             isValidUsernameKey(data.normalizedUsername) &&
+             data.playerId is string && data.playerId.size() >= 3 && data.playerId.size() <= 64 &&
+             data.appearanceId is string && data.appearanceId.size() >= 1 && data.appearanceId.size() <= 40 &&
+             isValidAppearanceConfig(data.appearanceConfig) &&
+             isValidEquippedClothing(data.equippedClothing) &&
+             isValidStringList(data.ownedClothing, 120) &&
+             data.inventoryCount is int && data.inventoryCount >= 0 && data.inventoryCount <= 10000 &&
+             data.coins is int && data.coins >= 0 && data.coins <= 1000000 &&
+             isValidAchievementsMap(data.achievementProgress) &&
+             isValidMissionsMap(data.missionProgress) &&
+             data.saveVersion is int && data.saveVersion >= 1 &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             data.lastSavedAt is timestamp;
+    }
+
+    function isValidCloudSavePartA(data, userId) {
+      return data.size() >= 29 && data.size() <= 50 &&
+             data.keys().hasOnly([
+               'uid', 'username', 'normalizedUsername', 'schemaVersion', 'saveVersion',
+               'sessionId', 'playerId', 'playerName', 'appearanceId', 'appearanceConfig',
+               'lastPosition', 'settings', 'coins', 'energy', 'inventory', 'ownedClothing',
+               'equippedClothing', 'hairOverride', 'outfitPresets', 'selectedOutfitPresetId',
+               'claimedRewards', 'transactions', 'arcadeHighScores', 'cinemaTicketActive',
+               'achievements', 'missions', 'progression', 'story', 'miniGameRecords',
+               'vehicles', 'activeVehicleId', 'loungeTokens', 'collectedIds',
+               'ownedProperties', 'discoveredSecrets', 'collectibles', 'privacySettings',
+               'joinedAtMs', 'friendCount',
+               'clientUpdatedAt', 'createdAt', 'updatedAt'
+             ]) &&
+             data.uid == userId &&
+             isValidDisplayUsername(data.username) &&
+             isValidUsernameKey(data.normalizedUsername) &&
+             data.schemaVersion == 1 &&
+             data.saveVersion is int && data.saveVersion >= 1 &&
+             data.sessionId is string && data.sessionId.size() <= 64 &&
+             data.playerId is string && data.playerId.size() <= 64 &&
+             data.playerName is string && data.playerName.size() <= 24 &&
+             data.appearanceId is string && data.appearanceId.size() <= 40 &&
+             (data.appearanceConfig is map && data.appearanceConfig.size() == 9) &&
+             (data.lastPosition == null || (data.lastPosition is map && data.lastPosition.size() <= 6)) &&
+             (data.settings is map && data.settings.size() <= 24) &&
+             data.coins is int && data.coins >= 0 && data.coins <= 1000000 &&
+             data.energy is int && data.energy >= 0 && data.energy <= 100 &&
+             (data.inventory is list && data.inventory.size() <= 150) &&
+             (data.ownedClothing is list && data.ownedClothing.size() <= 120) &&
+             (data.equippedClothing is map && data.equippedClothing.size() == 7);
+    }
+
+    function isValidCloudSavePartB(data) {
+      return (data.hairOverride is map && data.hairOverride.size() <= 4) &&
+             (data.outfitPresets is list && data.outfitPresets.size() <= 12) &&
+             (data.selectedOutfitPresetId == null || (data.selectedOutfitPresetId is string && data.selectedOutfitPresetId.size() <= 48)) &&
+             (data.claimedRewards is list && data.claimedRewards.size() <= 260) &&
+             (data.transactions is list && data.transactions.size() <= 40) &&
+             (data.arcadeHighScores is map && data.arcadeHighScores.size() <= 20) &&
+             data.cinemaTicketActive is bool &&
+             (data.achievements is map && data.achievements.size() <= 8) &&
+             (data.missions is map && data.missions.size() <= 12) &&
+             data.clientUpdatedAt is int && data.clientUpdatedAt >= 0 &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidCloudSavePartC(data) {
+      return (!('progression' in data) || (data.progression is map && data.progression.size() <= 12 && data.progression.xp is int && data.progression.xp >= 0 && data.progression.xp <= 100000 && data.progression.level is int && data.progression.level >= 1 && data.progression.level <= 20)) &&
+             (!('story' in data) || (data.story is map && data.story.size() <= 14 && data.story.started is bool && data.story.currentChapter is int && data.story.currentChapter >= 1 && data.story.currentChapter <= 10)) &&
+             (!('miniGameRecords' in data) || (data.miniGameRecords is map && data.miniGameRecords.size() <= 16)) &&
+             (!('vehicles' in data) || (data.vehicles is list && data.vehicles.size() <= 16)) &&
+             (!('activeVehicleId' in data) || data.activeVehicleId == null || (data.activeVehicleId is string && data.activeVehicleId.size() <= 48)) &&
+             (!('loungeTokens' in data) || (data.loungeTokens is int && data.loungeTokens >= 0 && data.loungeTokens <= 100000)) &&
+             (!('collectedIds' in data) || (data.collectedIds is list && data.collectedIds.size() <= 60)) &&
+             (!('ownedProperties' in data) || (data.ownedProperties is list && data.ownedProperties.size() <= 16)) &&
+             (!('discoveredSecrets' in data) || (data.discoveredSecrets is list && data.discoveredSecrets.size() <= 40)) &&
+             (!('collectibles' in data) || (data.collectibles is list && data.collectibles.size() <= 80)) &&
+             (!('privacySettings' in data) || (data.privacySettings is map && data.privacySettings.size() <= 10)) &&
+             (!('joinedAtMs' in data) || (data.joinedAtMs is int && data.joinedAtMs >= 0)) &&
+             (!('friendCount' in data) || (data.friendCount is int && data.friendCount >= 0 && data.friendCount <= 500));
+    }
+
+    function isValidCloudSave(data, userId) {
+      return isValidCloudSavePartA(data, userId) &&
+             isValidCloudSavePartB(data) &&
+             isValidCloudSavePartC(data);
+    }
+
+    function isValidUserProfileUpdate(data, prev, userId) {
+      return isValidUserProfile(data, userId) &&
+             (!('username' in prev) || !isValidDisplayUsername(prev.username) || data.username == prev.username) &&
+             (!('normalizedUsername' in prev) || !isValidUsernameKey(prev.normalizedUsername) || data.normalizedUsername == prev.normalizedUsername) &&
+             ((('createdAt' in prev && prev.createdAt is timestamp) && data.createdAt == prev.createdAt) || (!('createdAt' in prev && prev.createdAt is timestamp) && data.createdAt == request.time)) &&
+             data.updatedAt == request.time &&
+             data.lastSavedAt == request.time &&
+             (!('saveVersion' in prev) || !(prev.saveVersion is int) || data.saveVersion >= prev.saveVersion);
+    }
+
+    function isValidCloudSaveUpdate(data, prev, userId) {
+      return isValidCloudSavePartA(data, userId) &&
+             isValidCloudSavePartB(data) &&
+             isValidCloudSavePartC(data) &&
+             (!('username' in prev) || !isValidDisplayUsername(prev.username) || data.username == prev.username) &&
+             (!('normalizedUsername' in prev) || !isValidUsernameKey(prev.normalizedUsername) || data.normalizedUsername == prev.normalizedUsername) &&
+             ((('createdAt' in prev && prev.createdAt is timestamp) && data.createdAt == prev.createdAt) || (!('createdAt' in prev && prev.createdAt is timestamp) && data.createdAt == request.time)) &&
+             data.updatedAt == request.time &&
+             (!('saveVersion' in prev) || !(prev.saveVersion is int) || data.saveVersion >= prev.saveVersion);
+    }
+
+    function isValidPublicProfile(data, userId) {
+      return hasNoSensitiveCredentials(data) &&
+             data.size() >= 6 && data.size() <= 24 &&
+             data.keys().hasOnly([
+               'uid', 'username', 'normalizedUsername', 'displayName',
+               'level', 'xp', 'selectedTitle', 'appearanceId', 'appearanceConfig',
+               'equippedClothing', 'hairOverride', 'ownedPropertyCount',
+               'ownedVehicleCount', 'missionsCompletedCount', 'miniGamesPlayedCount',
+               'achievementCount', 'explorationPercent', 'joinedAtMs',
+               'onlineServerId', 'isOnline', 'profileVisibility', 'updatedAt'
+             ]) &&
+             data.uid == userId &&
+             data.uid == request.auth.uid &&
+             isValidDisplayUsername(data.username) &&
+             isValidUsernameKey(data.normalizedUsername) &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 24 &&
+             data.level is int && data.level >= 1 && data.level <= 99 &&
+             data.xp is int && data.xp >= 0 && data.xp <= 100000 &&
+             (!('profileVisibility' in data) || data.profileVisibility in ['public', 'friends', 'private']) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidPropertyDeed(data, deedId) {
+      return hasNoSensitiveCredentials(data) &&
+             data.size() >= 8 && data.size() <= 14 &&
+             data.keys().hasOnly([
+               'deedId', 'ownerUid', 'ownerUsername', 'propertyId', 'title',
+               'tier', 'allowVisitors', 'invitedUids', 'floorStyle', 'wallStyle',
+               'furniture', 'updatedAt'
+             ]) &&
+             data.deedId == deedId &&
+             data.ownerUid == request.auth.uid &&
+             isValidDisplayUsername(data.ownerUsername) &&
+             data.propertyId is string && data.propertyId.size() >= 1 && data.propertyId.size() <= 40 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 60 &&
+             data.tier in ['apartment', 'medium_house', 'luxury_house', 'premium_villa'] &&
+             data.allowVisitors is bool &&
+             isValidStringList(data.invitedUids, 40) &&
+             data.furniture is list && data.furniture.size() <= 60 &&
+             data.updatedAt is timestamp;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Match Blocks
+    // -------------------------------------------------------------------------
+    match /usernames/{usernameKey} {
+      allow get: if isValidUsernameKey(usernameKey);
+      allow list: if false;
+      allow create: if isSignedIn() &&
+                    isValidUsernameKey(usernameKey) &&
+                    isValidUsernameReservation(incoming(), usernameKey);
+      allow update: if false;
+      allow delete: if isSignedIn() &&
+                    isValidUsernameKey(usernameKey) &&
+                    existing().uid == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId) &&
+                    isOwner(userId) &&
+                    isValidUserProfile(incoming(), userId) &&
+                    (
+                      incoming().coins <= 500 ||
+                      (
+                        exists(/databases/$(database)/documents/saves/$(userId)) &&
+                        get(/databases/$(database)/documents/saves/$(userId)).data.uid == userId
+                      )
+                    ) &&
+                    incoming().createdAt == request.time &&
+                    incoming().updatedAt == request.time &&
+                    incoming().lastSavedAt == request.time &&
+                    (
+                      (
+                        exists(/databases/$(database)/documents/saves/$(userId)) &&
+                        get(/databases/$(database)/documents/saves/$(userId)).data.uid == userId
+                      ) ||
+                      (
+                        existsAfter(/databases/$(database)/documents/usernames/$(incoming().normalizedUsername)) &&
+                        getAfter(/databases/$(database)/documents/usernames/$(incoming().normalizedUsername)).data.uid == userId
+                      )
+                    );
+      allow update: if isValidId(userId) &&
+                    isOwner(userId) &&
+                    isValidUserProfileUpdate(incoming(), existing(), userId);
+      allow delete: if false;
+    }
+
+    match /saves/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId) &&
+                    isOwner(userId) &&
+                    isValidCloudSave(incoming(), userId) &&
+                    (
+                      incoming().coins <= 500 ||
+                      (
+                        exists(/databases/$(database)/documents/users/$(userId)) &&
+                        get(/databases/$(database)/documents/users/$(userId)).data.uid == userId
+                      )
+                    ) &&
+                    incoming().createdAt == request.time &&
+                    incoming().updatedAt == request.time &&
+                    (
+                      (
+                        exists(/databases/$(database)/documents/users/$(userId)) &&
+                        get(/databases/$(database)/documents/users/$(userId)).data.uid == userId
+                      ) ||
+                      (
+                        existsAfter(/databases/$(database)/documents/usernames/$(incoming().normalizedUsername)) &&
+                        getAfter(/databases/$(database)/documents/usernames/$(incoming().normalizedUsername)).data.uid == userId
+                      )
+                    );
+      allow update: if isValidId(userId) &&
+                    isOwner(userId) &&
+                    isValidCloudSaveUpdate(incoming(), existing(), userId);
+      allow delete: if false;
+    }
+
+    match /publicProfiles/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if false;
+      allow create, update: if isValidId(userId) && isOwner(userId) && isValidPublicProfile(incoming(), userId);
+      allow delete: if false;
+    }
+
+    match /friendRequests/{requestId} {
+      allow get: if isSignedIn() && (resource == null || existing().senderUid == request.auth.uid || existing().receiverUid == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.senderUid == request.auth.uid || resource.data.receiverUid == request.auth.uid);
+      allow create: if isSignedIn() &&
+                    hasNoSensitiveCredentials(incoming()) &&
+                    incoming().senderUid == request.auth.uid &&
+                    incoming().receiverUid is string &&
+                    incoming().receiverUid != request.auth.uid &&
+                    incoming().status == 'pending' &&
+                    incoming().createdAt == request.time;
+      allow update: if isSignedIn() &&
+                    existing().receiverUid == request.auth.uid &&
+                    incoming().senderUid == existing().senderUid &&
+                    incoming().receiverUid == existing().receiverUid &&
+                    incoming().status in ['accepted', 'declined'];
+      allow delete: if isSignedIn() && (existing().senderUid == request.auth.uid || existing().receiverUid == request.auth.uid);
+    }
+
+    match /friendships/{pairId} {
+      allow get: if isSignedIn() && (resource == null || request.auth.uid in existing().uids);
+      allow list: if isSignedIn() && request.auth.uid in resource.data.uids;
+      allow create: if isSignedIn() &&
+                    hasNoSensitiveCredentials(incoming()) &&
+                    incoming().uids is list &&
+                    incoming().uids.size() == 2 &&
+                    request.auth.uid in incoming().uids;
+      allow update: if isSignedIn() &&
+                    request.auth.uid in existing().uids &&
+                    incoming().uids == existing().uids;
+      allow delete: if isSignedIn() && request.auth.uid in existing().uids;
+    }
+
+    match /propertyDeeds/{deedId} {
+      allow get: if isSignedIn() &&
+                 (
+                   resource == null ||
+                   existing().ownerUid == request.auth.uid ||
+                   existing().allowVisitors == true ||
+                   request.auth.uid in existing().invitedUids
+                 );
+      allow list: if isSignedIn() &&
+                  (
+                    resource.data.ownerUid == request.auth.uid ||
+                    resource.data.allowVisitors == true
+                  );
+      allow create: if isSignedIn() && isValidId(deedId) && isValidPropertyDeed(incoming(), deedId);
+      allow update: if isSignedIn() &&
+                    isValidId(deedId) &&
+                    existing().ownerUid == request.auth.uid &&
+                    isValidPropertyDeed(incoming(), deedId);
+      allow delete: if isSignedIn() && existing().ownerUid == request.auth.uid;
+    }
+
+    match /userSafety/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create, update: if isValidId(userId) &&
+                            isOwner(userId) &&
+                            hasNoSensitiveCredentials(incoming()) &&
+                            incoming().uid == userId &&
+                            isValidStringList(incoming().mutedUids, 100) &&
+                            isValidStringList(incoming().blockedUids, 100);
+      allow delete: if false;
+    }
+
+    match /playerReports/{reportId} {
+      allow read: if false;
+      allow create: if isSignedIn() &&
+                    hasNoSensitiveCredentials(incoming()) &&
+                    incoming().reporterUid == request.auth.uid &&
+                    incoming().targetUid is string &&
+                    incoming().targetUid != request.auth.uid &&
+                    incoming().reason is string &&
+                    incoming().reason.size() >= 2 && incoming().reason.size() <= 80 &&
+                    incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /systemConfig/{configId} {
+      allow get: if isSignedIn() && isValidId(configId);
+      allow list, write: if false;
+    }
+  }
+}

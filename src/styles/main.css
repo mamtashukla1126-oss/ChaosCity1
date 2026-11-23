@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+:root {
+  --cc-navy-950: #060b16;
+  --cc-navy-900: #0b1221;
+  --cc-navy-800: #131f38;
+  --cc-navy-700: #1d2e52;
+  --cc-blue-500: #0ea5e9;
+  --cc-blue-400: #38bdf8;
+  --cc-blue-300: #7dd3fc;
+  --cc-amber-400: #fbbf24;
+  --cc-emerald-400: #34d399;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#game-root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--cc-navy-950);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#game-root {
+  position: relative;
+}
+
+#phaser-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+#phaser-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+#ui-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.ui-interactive {
+  pointer-events: auto;
+}
+
+.font-display {
+  font-family: 'Outfit', sans-serif;
+}
+
+.font-mono-tabular {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Crisp pixel-themed panel surface (solid high-contrast navy, no blur over active WebGL canvas) */
+.cc-panel {
+  background: rgba(11, 18, 33, 0.94);
+  border: 2px solid #263b66;
+  box-shadow: 0 12px 32px rgba(3, 7, 18, 0.65), inset 0 1px 0 rgba(125, 211, 252, 0.14);
+}
+
+.cc-panel-subtle {
+  background: rgba(11, 18, 33, 0.88);
+  border: 1.5px solid #22355c;
+  box-shadow: 0 6px 20px rgba(3, 7, 18, 0.5);
+}
+
+.cc-btn-primary {
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+  color: #06101f;
+  border: 1.5px solid #7dd3fc;
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.35);
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1), filter 140ms ease;
+}
+
+.cc-btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.cc-btn-primary:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.cc-btn-secondary {
+  background: rgba(19, 31, 56, 0.94);
+  color: #e2e8f0;
+  border: 1.5px solid #2c4474;
+  transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1), border-color 140ms ease, background-color 140ms ease;
+}
+
+.cc-btn-secondary:hover {
+  border-color: #38bdf8;
+  background: rgba(29, 46, 82, 0.96);
+  transform: translateY(-1px);
+}
+
+.cc-btn-secondary:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* Custom range sliders for settings */
+input[type='range'].cc-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: #1d2e52;
+  border: 1px solid #2f497f;
+  outline: none;
+}
+
+input[type='range'].cc-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: #38bdf8;
+  border: 2px solid #e0f2fe;
+  cursor: pointer;
+}
+
+input[type='range'].cc-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: #38bdf8;
+  border: 2px solid #e0f2fe;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:root {
+  --cc-ui-scale: 1;
+}
+
+.cc-owner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #291502;
+  background: linear-gradient(135deg, #fde047 0%, #f59e0b 55%, #fbbf24 100%);
+  border: 1px solid #fef08a;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+  line-height: 1.1;
+  vertical-align: middle;
+}
+
+.cc-owner-badge--compact {
+  padding: 1px 5px;
+  font-size: 9px;
+  gap: 3px;
+}
+
+.cc-ui-scaled {
+  transform: scale(var(--cc-ui-scale, 1));
+  transform-origin: top left;
+}
+

@@ -1,0 +1,16 @@
+name = "chaos-city-multiplayer"
+main = "src/worker.ts"
+compatibility_date = "2025-10-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "gen-lang-client-0863195692"
+FIREBASE_DATABASE_ID = "ai-studio-chaoscity-9f2185e3-50e4-4627-83fe-0e5d2264917c"
+# Set OWNER_UID in Cloudflare Secrets (`wrangler secret put OWNER_UID`)
+
+[[durable_objects.bindings]]
+name = "CITY_ROOM"
+class_name = "CityRoomDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["CityRoomDO"]

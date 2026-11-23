@@ -1,0 +1,279 @@
+{
+  "entities": {
+    "UsernameReservation": {
+      "title": "UsernameReservation",
+      "description": "Case-insensitive unique username reservation index keyed by normalized lowercase username.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID that claimed this username.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "description": "Display username chosen by the player (3-20 alphanumeric/underscore chars).",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^[a-zA-Z0-9_]{3,20}$"
+        },
+        "normalizedUsername": {
+          "type": "string",
+          "description": "Lowercase normalized username key matching the document ID.",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^[a-z0-9_]{3,20}$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when username was claimed."
+        }
+      },
+      "required": ["uid", "username", "normalizedUsername", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private player account profile without credentials or PII.",
+      "type": "object",
+      "properties": {
+        "uid": {"type": "string", "minLength": 1, "maxLength": 128},
+        "username": {"type": "string", "minLength": 3, "maxLength": 20},
+        "normalizedUsername": {"type": "string", "minLength": 3, "maxLength": 20},
+        "playerId": {"type": "string", "minLength": 3, "maxLength": 64},
+        "appearanceId": {"type": "string", "minLength": 1, "maxLength": 40},
+        "appearanceConfig": {"type": "object"},
+        "equippedClothing": {"type": "object"},
+        "ownedClothing": {"type": "array"},
+        "inventoryCount": {"type": "integer"},
+        "coins": {"type": "integer"},
+        "achievementProgress": {"type": "object"},
+        "missionProgress": {"type": "object"},
+        "saveVersion": {"type": "integer"},
+        "createdAt": {"type": "string", "format": "date-time"},
+        "updatedAt": {"type": "string", "format": "date-time"},
+        "lastSavedAt": {"type": "string", "format": "date-time"}
+      },
+      "required": [
+        "uid", "username", "normalizedUsername", "playerId", "appearanceId",
+        "appearanceConfig", "equippedClothing", "ownedClothing", "inventoryCount",
+        "coins", "achievementProgress", "missionProgress", "saveVersion",
+        "createdAt", "updatedAt", "lastSavedAt"
+      ]
+    },
+    "CloudSaveDocument": {
+      "title": "CloudSaveDocument",
+      "description": "Full versioned single-player & social-world cloud game save tied strictly to a single Firebase UID.",
+      "type": "object",
+      "properties": {
+        "uid": {"type": "string", "minLength": 1, "maxLength": 128},
+        "username": {"type": "string", "minLength": 3, "maxLength": 20},
+        "normalizedUsername": {"type": "string", "minLength": 3, "maxLength": 20},
+        "schemaVersion": {"type": "integer"},
+        "saveVersion": {"type": "integer"},
+        "sessionId": {"type": "string", "minLength": 4, "maxLength": 64},
+        "playerId": {"type": "string", "minLength": 3, "maxLength": 64},
+        "playerName": {"type": "string", "minLength": 1, "maxLength": 24},
+        "appearanceId": {"type": "string", "minLength": 1, "maxLength": 40},
+        "appearanceConfig": {"type": "object"},
+        "lastPosition": {"type": "object"},
+        "settings": {"type": "object"},
+        "coins": {"type": "integer"},
+        "energy": {"type": "integer"},
+        "inventory": {"type": "array"},
+        "ownedClothing": {"type": "array"},
+        "equippedClothing": {"type": "object"},
+        "hairOverride": {"type": "object"},
+        "outfitPresets": {"type": "array"},
+        "selectedOutfitPresetId": {"type": "string", "maxLength": 48},
+        "claimedRewards": {"type": "array"},
+        "transactions": {"type": "array"},
+        "arcadeHighScores": {"type": "object"},
+        "cinemaTicketActive": {"type": "boolean"},
+        "achievements": {"type": "object"},
+        "missions": {"type": "object"},
+        "progression": {"type": "object"},
+        "story": {
+          "type": "object",
+          "description": "Story Campaign & Starlight Beacon chapters, mission phases, choices, ending/teaser unlock flags, and baseline progress."
+        },
+        "miniGameRecords": {"type": "object"},
+        "vehicles": {"type": "array"},
+        "activeVehicleId": {"type": "string", "maxLength": 48},
+        "loungeTokens": {"type": "integer"},
+        "collectedIds": {"type": "array"},
+        "ownedProperties": {"type": "array"},
+        "discoveredSecrets": {"type": "array"},
+        "collectibles": {"type": "array"},
+        "privacySettings": {"type": "object"},
+        "joinedAtMs": {"type": "integer"},
+        "friendCount": {"type": "integer"},
+        "clientUpdatedAt": {"type": "integer"},
+        "createdAt": {"type": "string", "format": "date-time"},
+        "updatedAt": {"type": "string", "format": "date-time"}
+      },
+      "required": [
+        "uid", "username", "normalizedUsername", "schemaVersion", "saveVersion",
+        "sessionId", "playerId", "playerName", "appearanceId", "appearanceConfig",
+        "lastPosition", "settings", "coins", "energy", "inventory", "ownedClothing",
+        "equippedClothing", "hairOverride", "outfitPresets", "selectedOutfitPresetId",
+        "claimedRewards", "transactions", "arcadeHighScores", "cinemaTicketActive",
+        "achievements", "missions", "clientUpdatedAt", "createdAt", "updatedAt"
+      ]
+    },
+    "PublicPlayerProfile": {
+      "title": "PublicPlayerProfile",
+      "description": "Safe public player profile visible to signed-in players without credentials, emails, or spoofable role flags.",
+      "type": "object",
+      "properties": {
+        "uid": {"type": "string"},
+        "username": {"type": "string"},
+        "normalizedUsername": {"type": "string"},
+        "displayName": {"type": "string"},
+        "level": {"type": "integer"},
+        "xp": {"type": "integer"},
+        "selectedTitle": {"type": "string"},
+        "appearanceId": {"type": "string"},
+        "appearanceConfig": {"type": "object"},
+        "equippedClothing": {"type": "object"},
+        "hairOverride": {"type": "object"},
+        "ownedPropertyCount": {"type": "integer"},
+        "ownedVehicleCount": {"type": "integer"},
+        "missionsCompletedCount": {"type": "integer"},
+        "miniGamesPlayedCount": {"type": "integer"},
+        "achievementCount": {"type": "integer"},
+        "explorationPercent": {"type": "integer"},
+        "joinedAtMs": {"type": "integer"},
+        "onlineServerId": {"type": "string"},
+        "isOnline": {"type": "boolean"},
+        "profileVisibility": {"type": "string"},
+        "updatedAt": {"type": "string", "format": "date-time"}
+      },
+      "required": ["uid", "username", "normalizedUsername", "displayName", "level", "xp"]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "description": "Pending or resolved friend request between two authenticated accounts.",
+      "type": "object",
+      "properties": {
+        "senderUid": {"type": "string"},
+        "senderUsername": {"type": "string"},
+        "receiverUid": {"type": "string"},
+        "receiverUsername": {"type": "string"},
+        "status": {"type": "string"},
+        "createdAt": {"type": "string", "format": "date-time"}
+      },
+      "required": ["senderUid", "senderUsername", "receiverUid", "receiverUsername", "status", "createdAt"]
+    },
+    "Friendship": {
+      "title": "Friendship",
+      "description": "Confirmed bidirectional friendship between two players.",
+      "type": "object",
+      "properties": {
+        "uids": {"type": "array"},
+        "usernames": {"type": "object"},
+        "createdAt": {"type": "string", "format": "date-time"}
+      },
+      "required": ["uids", "usernames", "createdAt"]
+    },
+    "PropertyDeed": {
+      "title": "PropertyDeed",
+      "description": "Player-owned real estate deed storing interior decoration layout, theme, and visitor permissions.",
+      "type": "object",
+      "properties": {
+        "deedId": {"type": "string"},
+        "ownerUid": {"type": "string"},
+        "ownerUsername": {"type": "string"},
+        "propertyId": {"type": "string"},
+        "title": {"type": "string"},
+        "tier": {"type": "string"},
+        "allowVisitors": {"type": "boolean"},
+        "invitedUids": {"type": "array"},
+        "floorStyle": {"type": "string"},
+        "wallStyle": {"type": "string"},
+        "furniture": {"type": "array"},
+        "updatedAt": {"type": "string", "format": "date-time"}
+      },
+      "required": ["deedId", "ownerUid", "ownerUsername", "propertyId", "title", "tier", "allowVisitors", "furniture", "updatedAt"]
+    },
+    "UserSafety": {
+      "title": "UserSafety",
+      "description": "Private muted and blocked player lists.",
+      "type": "object",
+      "properties": {
+        "uid": {"type": "string"},
+        "mutedUids": {"type": "array"},
+        "blockedUids": {"type": "array"},
+        "updatedAt": {"type": "string", "format": "date-time"}
+      },
+      "required": ["uid", "mutedUids", "blockedUids", "updatedAt"]
+    },
+    "PlayerReport": {
+      "title": "PlayerReport",
+      "description": "Abuse/safety report submitted by an authenticated player.",
+      "type": "object",
+      "properties": {
+        "reporterUid": {"type": "string"},
+        "targetUid": {"type": "string"},
+        "reason": {"type": "string"},
+        "details": {"type": "string"},
+        "createdAt": {"type": "string", "format": "date-time"}
+      },
+      "required": ["reporterUid", "targetUid", "reason", "createdAt"]
+    },
+    "OwnerConfig": {
+      "title": "OwnerConfig",
+      "description": "Read-only server/admin-provisioned owner verification config.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {"type": "string"},
+        "normalizedUsername": {"type": "string"}
+      },
+      "required": ["ownerUid", "normalizedUsername"]
+    }
+  },
+  "firestore": {
+    "/usernames/{usernameKey}": {
+      "schema": {"$ref": "#/entities/UsernameReservation"},
+      "description": "Atomic case-insensitive username uniqueness index; list disabled."
+    },
+    "/users/{userId}": {
+      "schema": {"$ref": "#/entities/UserProfile"},
+      "description": "Owner-only player account profile."
+    },
+    "/saves/{userId}": {
+      "schema": {"$ref": "#/entities/CloudSaveDocument"},
+      "description": "Owner-only cloud save document."
+    },
+    "/publicProfiles/{userId}": {
+      "schema": {"$ref": "#/entities/PublicPlayerProfile"},
+      "description": "Signed-in readable public player card (no PII, no spoofable roles)."
+    },
+    "/friendRequests/{requestId}": {
+      "schema": {"$ref": "#/entities/FriendRequest"},
+      "description": "Friend request invitations between players."
+    },
+    "/friendships/{pairId}": {
+      "schema": {"$ref": "#/entities/Friendship"},
+      "description": "Confirmed friend relationships."
+    },
+    "/propertyDeeds/{deedId}": {
+      "schema": {"$ref": "#/entities/PropertyDeed"},
+      "description": "Player-owned apartment/house/villa interior layouts and permissions."
+    },
+    "/userSafety/{userId}": {
+      "schema": {"$ref": "#/entities/UserSafety"},
+      "description": "Owner-only mute/block safety settings."
+    },
+    "/playerReports/{reportId}": {
+      "schema": {"$ref": "#/entities/PlayerReport"},
+      "description": "Write-only moderation reports."
+    },
+    "/systemConfig/{configId}": {
+      "schema": {"$ref": "#/entities/OwnerConfig"},
+      "description": "Admin-managed role verification config (read by signed-in users, client writes forbidden)."
+    }
+  }
+}

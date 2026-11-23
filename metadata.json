@@ -1,0 +1,6 @@
+{
+  "name": "CHAOS CITY",
+  "description": "Your City. Your Friends. Your Rules. A 2D open-world top-down pixel-art city exploration game.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
