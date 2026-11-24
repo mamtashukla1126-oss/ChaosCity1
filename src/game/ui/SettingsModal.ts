@@ -685,7 +685,11 @@ export class SettingsModal {
         const v = btn.dataset.spvis as ProfileVisibility;
         saveSystem.updatePrivacySettings({profileVisibility: v});
         audioSystem.playButtonClick();
-        void cloudSaveManager.syncPublicProfile(null, multiplayerClient.getStatus().status === 'connected');
+        const mpSt = multiplayerClient.getStatus();
+        void cloudSaveManager.syncPublicProfile(
+          mpSt.status === 'connected' ? mpSt.roomId : null,
+          mpSt.status === 'connected',
+        );
         this.render();
       });
     });
@@ -701,7 +705,11 @@ export class SettingsModal {
       const cur = saveSystem.getState().privacySettings.showOnlineStatus;
       saveSystem.updatePrivacySettings({showOnlineStatus: !cur});
       audioSystem.playButtonClick();
-      void cloudSaveManager.syncPublicProfile(null, multiplayerClient.getStatus().status === 'connected');
+      const mpSt = multiplayerClient.getStatus();
+      void cloudSaveManager.syncPublicProfile(
+        mpSt.status === 'connected' ? mpSt.roomId : null,
+        mpSt.status === 'connected',
+      );
       this.render();
     });
 

@@ -562,6 +562,8 @@ class CloudSaveManager {
   private queuedForce = false;
 
   private listeners = new Set<(state: CloudSyncState) => void>();
+  private presenceOnlineServerId: string | null = null;
+  private presenceIsOnline = false;
 
   constructor() {
     saveSystem.onSaveMutated((data, immediate) => {
@@ -652,6 +654,8 @@ class CloudSaveManager {
       this.lastSavedAtMs = null;
       this.lastError = null;
       this.lastConfirmedSaveVersion = 0;
+      this.presenceOnlineServerId = null;
+      this.presenceIsOnline = false;
       this.emit();
       return;
     }
@@ -943,7 +947,7 @@ class CloudSaveManager {
       this.lastError = null;
       this.retryAttempt = 0;
       this.emit();
-      void this.syncPublicProfile(null, false);
+      void this.syncPublicProfile(this.presenceOnlineServerId, this.presenceIsOnline);
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -987,6 +991,8 @@ class CloudSaveManager {
   }
 
   public async syncPublicProfile(onlineServerId: string | null, isOnline = true): Promise<void> {
+    this.presenceOnlineServerId = isOnline ? onlineServerId : null;
+    this.presenceIsOnline = isOnline;
     if (!this.activeUser || !isFirebaseConfigured()) return;
     try {
       const user = this.activeUser;

@@ -398,7 +398,11 @@ export class ProfileModal {
           const v = btn.dataset.pvis as ProfileVisibility;
           saveSystem.updatePrivacySettings({profileVisibility: v});
           audioSystem.playButtonClick();
-          void cloudSaveManager.syncPublicProfile(null, multiplayerClient.getStatus().status === 'connected');
+          const mpSt = multiplayerClient.getStatus();
+          void cloudSaveManager.syncPublicProfile(
+            mpSt.status === 'connected' ? mpSt.roomId : null,
+            mpSt.status === 'connected',
+          );
           this.render();
         });
       });

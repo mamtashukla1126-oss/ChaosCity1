@@ -64,6 +64,9 @@ export class SocialModal {
   private reportTarget: {uid: string; username: string} | null = null;
   private feedback: {text: string; error: boolean} | null = null;
   private actionBusy = false;
+  private chatDraft = '';
+  private lastConnSig = '';
+  private lastPlayerCount = -1;
 
   private unsubStatus: (() => void) | null = null;
   private unsubPlayers: (() => void) | null = null;
@@ -86,16 +89,30 @@ export class SocialModal {
     });
 
     this.unsubStatus = multiplayerClient.onStatusChange(() => {
-      if (this.openState) this.render();
+      if (!this.openState) return;
+      const st = multiplayerClient.getStatus();
+      const connSig = `${st.status}:${st.roomId}:${st.playerCount}`;
+      if (connSig !== this.lastConnSig) {
+        this.render();
+      } else {
+        this.updateHeaderStatusInPlace();
+      }
     });
     this.unsubPlayers = multiplayerClient.onPlayersChange(() => {
-      if (this.openState && (this.activeTab === 'chat' || this.activeTab === 'servers')) {
-        this.render();
+      if (!this.openState) return;
+      const count = multiplayerClient.getRemotePlayers().length;
+      if (this.activeTab === 'chat' || this.activeTab === 'servers') {
+        const activeTag = document.activeElement?.id;
+        if (count !== this.lastPlayerCount && activeTag !== 'cc-soc-chatinput') {
+          this.render();
+        }
       }
     });
     this.unsubChat = multiplayerClient.onChatChange(() => {
       if (this.openState && this.activeTab === 'chat') {
-        this.render();
+        if (!this.updateChatLogInPlace()) {
+          this.render();
+        }
       }
     });
     this.unsubLobbies = multiplayerClient.onLobbiesChange(() => {
@@ -156,6 +173,9 @@ export class SocialModal {
     const user = authSystem.getCurrentUser();
     const selfIsOwner = status.selfIsOwner || ownerBadgeService.isVerifiedOwnerAccount(user?.uid, user?.username);
 
+    this.lastConnSig = `${status.status}:${status.roomId}:${status.playerCount}`;
+    this.lastPlayerCount = multiplayerClient.getRemotePlayers().length;
+
     const statusColor =
       status.status === 'connected'
         ? 'text-emerald-300'
@@ -181,7 +201,7 @@ export class SocialModal {
               <h2 class="font-display text-lg sm:text-xl font-bold text-white">Chaos City Multiplayer & Social</h2>
               ${selfIsOwner ? ownerBadgeService.renderBadgeHtml(true) : ''}
             </div>
-            <div class="font-mono-tabular text-[11px] font-semibold ${statusColor} truncate">
+            <div id="cc-soc-status-label" class="font-mono-tabular text-[11px] font-semibold ${statusColor} truncate">
               ${statusLabel}
             </div>
           </div>
@@ -333,6 +353,50 @@ export class SocialModal {
     `;
   }
 
+  private renderChatMessagesHtml(messages: ReturnType<typeof multiplayerClient.getChatLog>): string {
+    if (messages.length === 0) {
+      return `<div class="text-slate-500 py-8 text-center">No messages yet. Say hello to CHAOS CITY!</div>`;
+    }
+    return messages
+      .map((m) => {
+        const verifiedOwner = ownerBadgeService.isVerifiedOwnerAccount(m.uid, m.username, m.isOwner);
+        return `
+          <div class="rounded-lg bg-[#0e172c] px-2.5 py-1.5 border border-[#1a2947]">
+            <div class="flex flex-wrap items-center gap-1.5">
+              ${verifiedOwner ? ownerBadgeService.renderBadgeHtml(true) : ''}
+              <span class="font-bold text-sky-300">${esc(m.displayName)}</span>
+              <span class="text-[10px] text-slate-500">@${esc(m.username)}</span>
+            </div>
+            <div class="text-slate-100 break-words mt-0.5">${esc(m.text)}</div>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  private updateChatLogInPlace(): boolean {
+    const logEl = this.backdrop.querySelector<HTMLDivElement>('#cc-soc-chatlog');
+    if (!logEl) return false;
+    logEl.innerHTML = this.renderChatMessagesHtml(multiplayerClient.getChatLog());
+    logEl.scrollTop = logEl.scrollHeight;
+    return true;
+  }
+
+  private updateHeaderStatusInPlace(): void {
+    const el = this.backdrop.querySelector<HTMLDivElement>('#cc-soc-status-label');
+    if (!el) return;
+    const status = multiplayerClient.getStatus();
+    const user = authSystem.getCurrentUser();
+    el.textContent =
+      status.status === 'connected'
+        ? `${status.roomName} (${status.playerCount}/${status.maxPlayers})${status.pingMs ? ` · ${status.pingMs}ms` : ''}`
+        : status.status === 'connecting'
+          ? 'Connecting...'
+          : user
+            ? 'Disconnected (Local Mode)'
+            : 'Guest (Sign in for Multiplayer)';
+  }
+
   private renderChatTab(): string {
     const status = multiplayerClient.getStatus();
     const remotes = multiplayerClient.getRemotePlayers();
@@ -384,29 +448,11 @@ export class SocialModal {
             Live Room Chat (Filtered & Rate-Limited)
           </div>
           <div id="cc-soc-chatlog" class="flex-1 max-h-56 overflow-y-auto space-y-1.5 pr-1 text-xs">
-            ${
-              messages.length === 0
-                ? `<div class="text-slate-500 py-8 text-center">No messages yet. Say hello to CHAOS CITY!</div>`
-                : messages
-                    .map((m) => {
-                      const verifiedOwner = ownerBadgeService.isVerifiedOwnerAccount(m.uid, m.username, m.isOwner);
-                      return `
-                        <div class="rounded-lg bg-[#0e172c] px-2.5 py-1.5 border border-[#1a2947]">
-                          <div class="flex flex-wrap items-center gap-1.5">
-                            ${verifiedOwner ? ownerBadgeService.renderBadgeHtml(true) : ''}
-                            <span class="font-bold text-sky-300">${esc(m.displayName)}</span>
-                            <span class="text-[10px] text-slate-500">@${esc(m.username)}</span>
-                          </div>
-                          <div class="text-slate-100 break-words mt-0.5">${esc(m.text)}</div>
-                        </div>
-                      `;
-                    })
-                    .join('')
-            }
+            ${this.renderChatMessagesHtml(messages)}
           </div>
 
           <form id="cc-soc-chatform" class="flex gap-2">
-            <input id="cc-soc-chatinput" type="text" maxlength="160" placeholder="${
+            <input id="cc-soc-chatinput" type="text" maxlength="160" value="${esc(this.chatDraft)}" placeholder="${
               status.status === 'connected' ? 'Message room citizens...' : 'Connect to a live server to chat'
             }" ${status.status === 'connected' ? '' : 'disabled'} class="flex-1 rounded-lg bg-[#060b16] border border-[#2c4474] px-3 py-2 text-xs text-white focus:border-sky-400 outline-none disabled:opacity-50" />
             <button type="submit" ${status.status === 'connected' ? '' : 'disabled'} class="cc-btn-primary px-4 py-2 rounded-lg text-xs font-bold min-h-[38px] cursor-pointer disabled:opacity-50">
@@ -756,14 +802,20 @@ export class SocialModal {
       });
     });
 
+    const chatInput = this.backdrop.querySelector<HTMLInputElement>('#cc-soc-chatinput');
+    chatInput?.addEventListener('input', () => {
+      this.chatDraft = chatInput.value;
+    });
+
     const chatForm = this.backdrop.querySelector('#cc-soc-chatform');
     chatForm?.addEventListener('submit', (e) => {
       e.preventDefault();
       const input = this.backdrop.querySelector<HTMLInputElement>('#cc-soc-chatinput');
       if (!input) return;
-      const text = input.value.trim();
+      const text = (input.value || this.chatDraft).trim();
       if (!text) return;
       if (multiplayerClient.sendChat(text)) {
+        this.chatDraft = '';
         input.value = '';
         audioSystem.playButtonClick();
       } else {

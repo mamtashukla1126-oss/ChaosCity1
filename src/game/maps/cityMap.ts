@@ -1041,7 +1041,7 @@ export function createCityMapData(): CityMapData {
 
   // Mini-Game World Stations (Fishing Pier, Racing Arch, Express Courier Desk, Neon Memory Kiosk)
   addProp('prop_fishing_pier_1', 'prop_fishing_pier', 45.0, 9.0, false);
-  addProp('prop_race_arch_1', 'prop_race_arch', 33.2, 25.3, true, 24, 14, 10);
+  addProp('prop_race_arch_1', 'prop_race_arch', 33.2, 25.3, false);
   addProp('prop_courier_desk_1', 'prop_courier_desk', 18.7, 24.1, true, 24, 14, 8);
   addProp('prop_memory_kiosk_1', 'prop_memory_kiosk', 54.0, 36.8, true, 22, 14, 10);
 
